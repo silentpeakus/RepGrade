@@ -1,0 +1,41 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Base44 user ID"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "athlete",
+        "trainer"
+      ],
+      "default": "athlete"
+    },
+    "trainer_code": {
+      "type": "string",
+      "description": "Unique invite code for trainers"
+    },
+    "linked_trainer_id": {
+      "type": "string",
+      "description": "Trainer user ID if athlete is linked"
+    },
+    "overall_gpa": {
+      "type": "number",
+      "description": "Calculated overall GPA 0-100"
+    },
+    "total_sessions": {
+      "type": "number",
+      "default": 0
+    },
+    "bio": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "role"
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "name": "GradeSession",
+  "type": "object",
+  "properties": {
+    "athlete_id": {
+      "type": "string",
+      "description": "User ID of the athlete"
+    },
+    "trainer_id": {
+      "type": "string",
+      "description": "User ID of the linked trainer, if any"
+    },
+    "exercise": {
+      "type": "string",
+      "description": "Name of the exercise performed"
+    },
+    "exercise_category": {
+      "type": "string",
+      "enum": [
+        "chest",
+        "back",
+        "shoulders",
+        "arms",
+        "legs",
+        "glutes",
+        "core",
+        "full_body"
+      ],
+      "description": "Muscle group category"
+    },
+    "video_url": {
+      "type": "string",
+      "description": "URL to uploaded video file"
+    },
+    "form_score": {
+      "type": "number",
+      "description": "Form score 0-100"
+    },
+    "intensity_score": {
+      "type": "number",
+      "description": "Intensity score 0-100"
+    },
+    "tempo_score": {
+      "type": "number",
+      "description": "Tempo score 0-100"
+    },
+    "overall_grade": {
+      "type": "number",
+      "description": "Combined grade 0-100"
+    },
+    "grade_letter": {
+      "type": "string",
+      "enum": [
+        "A+",
+        "A",
+        "A-",
+        "B+",
+        "B",
+        "B-",
+        "C+",
+        "C",
+        "C-",
+        "D",
+        "F"
+      ],
+      "description": "Letter grade"
+    },
+    "reps": {
+      "type": "number",
+      "description": "Number of reps in the set"
+    },
+    "weight_lbs": {
+      "type": "number",
+      "description": "Weight used in lbs"
+    },
+    "feedback": {
+      "type": "string",
+      "description": "AI-generated feedback text"
+    },
+    "ready_to_progress": {
+      "type": "boolean",
+      "description": "Whether athlete is ready to increase weight"
+    },
+    "session_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the session"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "processing",
+        "completed",
+        "failed"
+      ],
+      "default": "processing"
+    }
+  },
+  "required": [
+    "athlete_id",
+    "exercise",
+    "session_date"
+  ]
+}

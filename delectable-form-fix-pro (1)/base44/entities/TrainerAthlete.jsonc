@@ -1,0 +1,42 @@
+{
+  "name": "TrainerAthlete",
+  "type": "object",
+  "properties": {
+    "trainer_id": {
+      "type": "string",
+      "description": "User ID of the trainer"
+    },
+    "athlete_id": {
+      "type": "string",
+      "description": "User ID of the athlete"
+    },
+    "athlete_email": {
+      "type": "string",
+      "description": "Email of the athlete"
+    },
+    "athlete_name": {
+      "type": "string",
+      "description": "Full name of the athlete"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "active",
+        "removed"
+      ],
+      "default": "pending"
+    },
+    "invite_code": {
+      "type": "string",
+      "description": "Unique invite code used to link"
+    },
+    "linked_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "trainer_id"
+  ]
+}
