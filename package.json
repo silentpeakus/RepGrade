@@ -1,0 +1,17 @@
+{
+  "name": "personal-training-app",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "app",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint"
+  },
+  "devDependencies": {
+    "turbo": "^1.11.4"
+  }
+}
