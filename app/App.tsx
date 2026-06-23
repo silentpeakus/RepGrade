@@ -1,278 +1,124 @@
-import { useEffect, useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import {
-  StyleSheet,
-  Text,
-  View,
-  Button,
-  ActivityIndicator,
-  Platform,
-  TextInput
-} from 'react-native';
-import axios from 'axios';
+import React, { useState } from 'react';
+import { View, StyleSheet, SafeAreaView, StatusBar, Alert } from 'react-native';
+import { colors } from './theme';
+import BottomTabBar, { Tab } from './navigation/BottomTabBar';
+import LoginScreen from './screens/LoginScreen';
+import AthleteDashboardScreen from './screens/AthleteDashboardScreen';
+import SubmitSetScreen from './screens/SubmitSetScreen';
+import GradeHistoryScreen from './screens/GradeHistoryScreen';
+
+const DEMO_SESSIONS = [
+  {
+    id: '1',
+    exercise: 'Squat',
+    exercise_category: 'legs',
+    session_date: '2025-06-20',
+    weight_lbs: 225,
+    reps: 5,
+    grade_letter: 'B+',
+    form_score: 84,
+    intensity_score: 88,
+    tempo_score: 79,
+    overall_grade: 84,
+    ready_to_progress: false,
+    feedback: 'Good depth and bar path. Work on keeping your chest up in the bottom position.',
+    status: 'completed',
+  },
+  {
+    id: '2',
+    exercise: 'Bench Press',
+    exercise_category: 'chest',
+    session_date: '2025-06-18',
+    weight_lbs: 185,
+    reps: 8,
+    grade_letter: 'A-',
+    form_score: 91,
+    intensity_score: 87,
+    tempo_score: 90,
+    overall_grade: 90,
+    ready_to_progress: true,
+    feedback: 'Excellent form. Consistent bar path and controlled tempo throughout all reps.',
+    status: 'completed',
+  },
+  {
+    id: '3',
+    exercise: 'Deadlift',
+    exercise_category: 'back',
+    session_date: '2025-06-15',
+    weight_lbs: 315,
+    reps: 3,
+    grade_letter: 'B',
+    form_score: 80,
+    intensity_score: 95,
+    tempo_score: 76,
+    overall_grade: 82,
+    ready_to_progress: false,
+    feedback: 'Strong pull. Focus on keeping your lower back neutral through the lockout.',
+    status: 'completed',
+  },
+];
+
+type Screen = 'login' | 'app';
 
 export default function App() {
-  const [exercise, setExercise] = useState('squat');
-  const [exerciseOptions, setExerciseOptions] = useState([]);
-  const [scoreText, setScoreText] = useState('82');
-  const [status, setStatus] = useState('Ready to submit a set');
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [optionsLoading, setOptionsLoading] = useState(true);
-  const [optionsError, setOptionsError] = useState(null);
+  const [screen, setScreen] = useState<Screen>('app');
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [sessions] = useState(DEMO_SESSIONS);
 
-  const backendHost = Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000';
-
-  useEffect(() => {
-    const fetchExercises = async () => {
-      try {
-        setOptionsLoading(true);
-        const response = await axios.get(`${backendHost}/api/exercises`);
-        const exercises = response.data.map((item) => ({
-          ...item,
-          id: item.id || item.label.trim().toLowerCase()
-        }));
-        setExerciseOptions(exercises);
-        if (exercises.length > 0) {
-          setExercise(exercises[0].id);
-        }
-      } catch (error) {
-        setOptionsError('Unable to load exercise library.');
-      } finally {
-        setOptionsLoading(false);
-      }
-    };
-
-    fetchExercises();
-  }, [backendHost]);
-
-  const handleSubmit = async () => {
-    const score = Number(scoreText.trim());
-    if (!exercise.trim() || Number.isNaN(score) || score < 0 || score > 100) {
-      setStatus('Enter a valid exercise name and score 0–100.');
-      return;
-    }
-
-    setLoading(true);
-    setStatus('Submitting workout...');
-    setResult(null);
-
-    try {
-      const response = await axios.post(`${backendHost}/api/report-card`, {
-        exercise,
-        score
-      });
-
-      setResult(response.data);
-      setStatus('Workout reviewed successfully.');
-    } catch (error) {
-      setStatus('Upload failed. Check backend and network.');
-    } finally {
-      setLoading(false);
-    }
+  const handleLogin = async (_email: string, _password: string) => {
+    // TODO: wire real auth
+    setScreen('app');
   };
 
-  const normalizedExercise = exercise.trim().toLowerCase();
-  const selectedExercise =
-    exerciseOptions.find((item) => item.id === normalizedExercise) ||
-    exerciseOptions.find((item) => item.label.toLowerCase() === normalizedExercise);
+  const handleSubmit = async (exercise: string, _category: string, _reps: string, _weight: string) => {
+    // TODO: wire real AI grading API
+    Alert.alert(
+      'Set Submitted!',
+      `${exercise} — AI grading will be available once the backend is connected.`,
+      [{ text: 'OK', onPress: () => setActiveTab('history') }]
+    );
+  };
+
+  if (screen === 'login') {
+    return (
+      <>
+        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+        <LoginScreen
+          onLogin={handleLogin}
+          onNavigateRegister={() => Alert.alert('Coming soon', 'Registration screen coming soon.')}
+          onNavigateForgotPassword={() => Alert.alert('Coming soon', 'Password reset coming soon.')}
+        />
+      </>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Personal Training AI</Text>
-      <Text style={styles.subtitle}>Submit a workout set for review</Text>
-
-      {optionsLoading ? (
-        <View style={styles.card}>
-          <Text style={styles.label}>Loading exercises…</Text>
-          <ActivityIndicator style={styles.spinner} />
-        </View>
-      ) : optionsError ? (
-        <View style={styles.card}>
-          <Text style={styles.label}>{optionsError}</Text>
-        </View>
-      ) : (
-        <View style={styles.exerciseSelector}>
-          {exerciseOptions.map((item) => (
-            <View style={styles.exerciseButton} key={item.id}>
-              <Button
-                title={item.label}
-                onPress={() => {
-                  setExercise(item.id);
-                  setStatus(`Selected ${item.label}.`);
-                }}
-              />
-            </View>
-          ))}
-        </View>
-      )}
-
-      <View style={styles.card}>
-        <Text style={styles.label}>Exercise</Text>
-        <TextInput
-          style={styles.input}
-          value={exercise}
-          onChangeText={setExercise}
-          placeholder="e.g. squat"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-
-        <Text style={styles.label}>Performance Score</Text>
-        <TextInput
-          style={styles.input}
-          value={scoreText}
-          onChangeText={setScoreText}
-          placeholder="0 - 100"
-          keyboardType="numeric"
-        />
-      </View>
-
-      {selectedExercise && (
-        <View style={styles.card}>
-          <Text style={styles.label}>Exercise Cues</Text>
-          {selectedExercise.keyCues.map((cue, index) => (
-            <Text key={`cue-${index}`} style={styles.detailBullet}>
-              • {cue}
-            </Text>
-          ))}
-          <Text style={[styles.label, styles.exampleLabel]}>Example</Text>
-          <Text>{selectedExercise.example}</Text>
-        </View>
-      )}
-
-      <Button title="Submit Workout" onPress={handleSubmit} disabled={loading} />
-      {loading && <ActivityIndicator style={styles.spinner} />}
-
-      <View style={styles.resultCard}>
-        <Text style={styles.label}>Status</Text>
-        <Text>{status}</Text>
-        {result && (
-          <View style={styles.detailSection}>
-            <Text style={styles.detailTitle}>Grade: {result.grade}</Text>
-            <Text>{result.summary}</Text>
-
-            {result.example && (
-              <>
-                <Text style={styles.detailSubtitle}>Exercise Example</Text>
-                <Text>{result.example}</Text>
-              </>
-            )}
-
-            {result.keyCues && (
-              <>
-                <Text style={styles.detailSubtitle}>Key Cues</Text>
-                {result.keyCues.map((item, index) => (
-                  <Text key={`result-cue-${index}`} style={styles.detailBullet}>
-                    • {item}
-                  </Text>
-                ))}
-              </>
-            )}
-
-            <Text style={styles.detailSubtitle}>Strengths</Text>
-            {result.strengths.map((item, index) => (
-              <Text key={`strength-${index}`} style={styles.detailBullet}>• {item}</Text>
-            ))}
-            <Text style={styles.detailSubtitle}>Improvements</Text>
-            {result.improvements.map((item, index) => (
-              <Text key={`improve-${index}`} style={styles.detailBullet}>• {item}</Text>
-            ))}
-          </View>
+    <SafeAreaView style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <View style={styles.content}>
+        {activeTab === 'dashboard' && (
+          <AthleteDashboardScreen
+            userName="Athlete"
+            sessions={sessions}
+            loading={false}
+            onSubmitSet={() => setActiveTab('submit')}
+            onViewHistory={() => setActiveTab('history')}
+            onViewGPA={() => Alert.alert('Coming soon', 'GPA Dashboard coming soon.')}
+          />
+        )}
+        {activeTab === 'submit' && (
+          <SubmitSetScreen onSubmit={handleSubmit} />
+        )}
+        {activeTab === 'history' && (
+          <GradeHistoryScreen sessions={sessions} loading={false} />
         )}
       </View>
-
-      <StatusBar style={Platform.OS === 'web' ? 'dark' : 'auto'} />
-    </View>
+      <BottomTabBar activeTab={activeTab} onTabPress={setActiveTab} />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 8
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
-    textAlign: 'center'
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    marginBottom: 24,
-    padding: 18,
-    borderRadius: 16,
-    backgroundColor: '#f4f4f5',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3
-  },
-  input: {
-    width: '100%',
-    padding: 12,
-    marginTop: 6,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    backgroundColor: '#fff'
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 6,
-    color: '#333'
-  },
-  spinner: {
-    marginTop: 12
-  },
-  resultCard: {
-    width: '100%',
-    maxWidth: 420,
-    marginTop: 24,
-    padding: 18,
-    borderRadius: 16,
-    backgroundColor: '#eef2ff'
-  },
-  detailSection: {
-    marginTop: 12
-  },
-  detailTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 6
-  },
-  detailSubtitle: {
-    marginTop: 12,
-    fontWeight: '700'
-  },
-  detailBullet: {
-    marginLeft: 12,
-    marginTop: 4
-  },
-  exerciseSelector: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    maxWidth: 420,
-    marginBottom: 18
-  },
-  exerciseButton: {
-    flex: 1,
-    marginHorizontal: 4
-  },
-  exampleLabel: {
-    marginTop: 12
-  }
+  root: { flex: 1, backgroundColor: colors.background },
+  content: { flex: 1 },
 });
