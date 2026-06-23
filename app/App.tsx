@@ -61,7 +61,7 @@ const DEMO_SESSIONS = [
 type Screen = 'login' | 'app';
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('login');
+  const [screen, setScreen] = useState<Screen>('app');
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [sessions] = useState(DEMO_SESSIONS);
 
