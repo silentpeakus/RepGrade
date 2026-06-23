@@ -1,11 +1,98 @@
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
+const FormData = require('form-data');
+const fs = require('fs');
+const http = require('http');
 
 const app = express();
 const port = process.env.PORT || 4000;
+const POSE_SERVICE_URL = process.env.POSE_SERVICE_URL || 'http://localhost:8000';
 
 app.use(cors());
 app.use(express.json());
+
+const upload = multer({ dest: '/tmp/repgrade-uploads/' });
+
+// Forward a video file to the Python pose service and return parsed JSON.
+function callPoseService(filePath, filename, exercise) {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append('video', fs.createReadStream(filePath), { filename: filename || 'video.mp4' });
+    form.append('exercise', exercise);
+
+    const url = new URL('/analyze', POSE_SERVICE_URL);
+    const options = {
+      method: 'POST',
+      hostname: url.hostname,
+      port: url.port || 80,
+      path: url.pathname,
+      headers: form.getHeaders(),
+    };
+
+    const req = http.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        try {
+          resolve({ statusCode: res.statusCode, data: JSON.parse(body) });
+        } catch (e) {
+          reject(new Error('Invalid JSON from pose service'));
+        }
+      });
+    });
+    req.on('error', reject);
+    form.pipe(req);
+  });
+}
+
+// Map the pose service result into the RepGrade response shape.
+function buildGradeResponse(exercise, poseResult) {
+  const { score_0_to_4, reps = [], issues = [], cues = [] } = poseResult;
+  const gpa = typeof score_0_to_4 === 'number' ? score_0_to_4 : null;
+  const letterGrade = gpa === null ? 'N/A'
+    : gpa >= 3.7 ? 'A'
+    : gpa >= 3.0 ? 'B'
+    : gpa >= 2.0 ? 'C'
+    : gpa >= 1.0 ? 'D' : 'F';
+
+  return {
+    exercise,
+    gpa: gpa !== null ? Math.round(gpa * 100) / 100 : null,
+    grade: letterGrade,
+    reps: reps.length,
+    cues,
+    issues,
+    raw: poseResult,
+  };
+}
+
+app.post('/api/analyze', upload.single('video'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No video file uploaded.' });
+  }
+  const exercise = (req.body.exercise || 'back_squat').trim().toLowerCase().replace(/ /g, '_');
+
+  try {
+    const { statusCode, data } = await callPoseService(req.file.path, req.file.originalname, exercise);
+
+    fs.unlink(req.file.path, () => {});
+
+    if (data.status === 'rejected') {
+      return res.status(422).json({
+        error: 'Video rejected by pre-flight validation.',
+        reason: data.reason,
+        issues: data.issues,
+        view: data.view,
+      });
+    }
+
+    return res.json(buildGradeResponse(exercise, data));
+  } catch (err) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(502).json({ error: 'Pose service unavailable.', detail: err.message });
+  }
+});
 
 const rubric = {
   A: 'Excellent form, timing, and control.',
