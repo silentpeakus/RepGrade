@@ -231,6 +231,6 @@ app.post('/api/report-card', (req, res) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Training backend listening at http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Training backend listening on port ${port} (all interfaces)`);
 });
