@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -104,6 +105,10 @@ export default function App() {
       setResult(r.data);
       setStatus('Analysis complete.');
     } catch (err: unknown) {
+      const detail = axios.isAxiosError(err)
+        ? `Status: ${err.response?.status ?? 'none'}\n${JSON.stringify(err.response?.data ?? err.message)}`
+        : String(err);
+      Alert.alert('Upload Error', detail);
       const msg =
         axios.isAxiosError(err) && err.response?.data?.issues
           ? err.response.data.issues.join(' ')
