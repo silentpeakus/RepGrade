@@ -3,7 +3,7 @@
     "name": "RepGrade",
     "slug": "repgrade",
     "version": "1.0.0",
-    "sdkVersion": "52.0.0",
+    "sdkVersion": "54.0.0",
     "platforms": ["ios", "android", "web"],
     "web": {
       "bundler": "metro"
