@@ -30,6 +30,29 @@ type ExerciseOption = {
   label: string;
 };
 
+const GRADE_CONTENT: Record<string, { headline: string; strengths: string[] }> = {
+  A: {
+    headline: 'Elite execution.',
+    strengths: ['Your form is textbook — keep training like this.', 'Consistent depth and control throughout every rep.'],
+  },
+  B: {
+    headline: 'Solid set.',
+    strengths: ['Good movement pattern — your body knows what it\'s doing.', 'Strong effort and rep consistency.'],
+  },
+  C: {
+    headline: 'You showed up. That\'s the foundation.',
+    strengths: ['You completed the set — consistency builds champions.', 'Your body is learning the movement pattern.'],
+  },
+  D: {
+    headline: 'Every rep is a lesson.',
+    strengths: ['You put in the work — that\'s what matters most right now.', 'Identifying these patterns early protects you from injury later.'],
+  },
+  F: {
+    headline: 'This is where improvement starts.',
+    strengths: ['Knowing what to fix is step one — most people never get here.', 'Every great lifter was once a beginner.'],
+  },
+};
+
 export default function App() {
   const [exercise, setExercise] = useState('back_squat');
   const [exerciseOptions, setExerciseOptions] = useState<ExerciseOption[]>([]);
@@ -38,6 +61,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [micPermission, requestMicPermission] = useMicrophonePermissions();
@@ -65,6 +89,7 @@ export default function App() {
   async function analyzeVideo(uri: string, filename: string) {
     setLoading(true);
     setResult(null);
+    setShowDetails(false);
     setStatus('Analyzing set… this takes 1–2 minutes.');
 
     const form = new FormData();
@@ -115,16 +140,6 @@ export default function App() {
     setShowCamera(true);
   }
 
-  async function stopRecording() {
-    if (!cameraRef.current) return;
-    setRecording(false);
-    const video = await cameraRef.current.stopRecording();
-    setShowCamera(false);
-    if (video?.uri) {
-      await analyzeVideo(video.uri, `recording_${Date.now()}.mp4`);
-    }
-  }
-
   async function handleRecordPress() {
     if (!recording) {
       setRecording(true);
@@ -132,7 +147,12 @@ export default function App() {
         if (video?.uri) analyzeVideo(video.uri, `recording_${Date.now()}.mp4`);
       });
     } else {
-      await stopRecording();
+      setRecording(false);
+      const video = await cameraRef.current?.stopRecording();
+      setShowCamera(false);
+      if (video?.uri) {
+        await analyzeVideo(video.uri, `recording_${Date.now()}.mp4`);
+      }
     }
   }
 
@@ -157,11 +177,15 @@ export default function App() {
     );
   }
 
+  const gradeContent = result ? (GRADE_CONTENT[result.grade] ?? GRADE_CONTENT['C']) : null;
+  const topCue = result?.cues?.[0] ?? null;
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <Text style={styles.title}>REPGRADE</Text>
       <Text style={styles.subtitle}>Performance Intelligence</Text>
 
+      {/* Exercise selector */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>EXERCISE</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -169,7 +193,7 @@ export default function App() {
             <Pressable
               key={opt.id}
               style={[styles.chip, exercise === opt.id && styles.chipActive]}
-              onPress={() => setExercise(opt.id)}
+              onPress={() => { setExercise(opt.id); setResult(null); }}
             >
               <Text style={[styles.chipText, exercise === opt.id && styles.chipTextActive]}>
                 {opt.label.toUpperCase()}
@@ -179,6 +203,7 @@ export default function App() {
         </ScrollView>
       </View>
 
+      {/* Capture actions */}
       <View style={styles.captureRow}>
         <Pressable style={styles.actionBtn} onPress={startRecording} disabled={loading}>
           <Text style={styles.actionBtnText}>RECORD SET</Text>
@@ -188,6 +213,7 @@ export default function App() {
         </Pressable>
       </View>
 
+      {/* Status / loading */}
       <View style={styles.statusBar}>
         {loading ? (
           <View style={styles.loadingRow}>
@@ -199,36 +225,73 @@ export default function App() {
         )}
       </View>
 
-      {result && (
+      {/* Grade output */}
+      {result && gradeContent && (
         <View style={styles.gradeCard}>
+
+          {/* Grade + headline */}
           <View style={styles.gradeHeader}>
-            <Text style={styles.gradeLabel}>GRADE</Text>
             <Text style={styles.gradeLetter}>{result.grade}</Text>
-            {result.gpa !== null && (
-              <Text style={styles.gradeGpa}>{result.gpa.toFixed(2)} GPA</Text>
-            )}
-          </View>
-
-          <Text style={styles.metaText}>
-            {result.reps} rep{result.reps !== 1 ? 's' : ''} detected
-          </Text>
-
-          {result.cues.length > 0 && (
-            <View style={styles.subSection}>
-              <Text style={styles.subSectionLabel}>COACHING CUES</Text>
-              {result.cues.map((cue, i) => (
-                <Text key={i} style={styles.bullet}>→ {cue}</Text>
-              ))}
+            <View style={styles.gradeHeaderRight}>
+              {result.gpa !== null && (
+                <Text style={styles.gradeGpa}>{result.gpa.toFixed(2)} GPA</Text>
+              )}
+              <Text style={styles.repsText}>
+                {result.reps} rep{result.reps !== 1 ? 's' : ''}
+              </Text>
             </View>
+          </View>
+          <Text style={styles.headline}>{gradeContent.headline}</Text>
+
+          <View style={styles.divider} />
+
+          {/* Strengths */}
+          <Text style={styles.subSectionLabel}>WHAT YOU DID WELL</Text>
+          {gradeContent.strengths.map((s, i) => (
+            <Text key={i} style={styles.strengthText}>✓ {s}</Text>
+          ))}
+
+          {/* Single focus cue */}
+          {topCue && (
+            <>
+              <View style={styles.divider} />
+              <Text style={styles.subSectionLabel}>FOCUS ON THIS NEXT SET</Text>
+              <View style={styles.focusCueBox}>
+                <Text style={styles.focusCueText}>{topCue}</Text>
+              </View>
+            </>
           )}
 
-          {result.issues.length > 0 && (
-            <View style={styles.subSection}>
-              <Text style={styles.subSectionLabel}>FAULTS</Text>
-              {result.issues.map((issue, i) => (
-                <Text key={i} style={styles.bulletFault}>⚠ {issue}</Text>
-              ))}
-            </View>
+          {/* See details toggle */}
+          {(result.cues.length > 1 || result.issues.length > 0) && (
+            <>
+              <Pressable style={styles.detailsToggle} onPress={() => setShowDetails(!showDetails)}>
+                <Text style={styles.detailsToggleText}>
+                  {showDetails ? 'HIDE DETAILS ↑' : 'SEE FULL BREAKDOWN ↓'}
+                </Text>
+              </Pressable>
+
+              {showDetails && (
+                <View style={styles.detailsSection}>
+                  {result.cues.length > 1 && (
+                    <>
+                      <Text style={styles.subSectionLabel}>ALL COACHING CUES</Text>
+                      {result.cues.map((cue, i) => (
+                        <Text key={i} style={styles.bullet}>→ {cue}</Text>
+                      ))}
+                    </>
+                  )}
+                  {result.issues.length > 0 && (
+                    <>
+                      <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>FAULTS DETECTED</Text>
+                      {result.issues.map((issue, i) => (
+                        <Text key={i} style={styles.bulletFault}>⚠ {issue}</Text>
+                      ))}
+                    </>
+                  )}
+                </View>
+              )}
+            </>
           )}
         </View>
       )}
@@ -281,15 +344,33 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12, color: '#888', flex: 1 },
 
   gradeCard: { backgroundColor: '#1E1E1E', padding: 24 },
-  gradeHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 12, marginBottom: 8 },
-  gradeLabel: { fontSize: 10, color: '#888', letterSpacing: 2 },
-  gradeLetter: { fontSize: 56, fontWeight: '900', color: '#FFB000', lineHeight: 60 },
-  gradeGpa: { fontSize: 16, color: '#FFB000', fontWeight: '700' },
-  metaText: { fontSize: 12, color: '#888', marginBottom: 16 },
 
-  subSection: { marginTop: 16 },
-  subSectionLabel: { fontSize: 10, color: '#888', letterSpacing: 2, marginBottom: 8 },
-  bullet: { fontSize: 13, color: '#DDD', marginBottom: 6 },
+  gradeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  gradeLetter: { fontSize: 72, fontWeight: '900', color: '#FFB000', lineHeight: 76 },
+  gradeHeaderRight: { alignItems: 'flex-end' },
+  gradeGpa: { fontSize: 20, color: '#FFB000', fontWeight: '700' },
+  repsText: { fontSize: 12, color: '#888', marginTop: 4 },
+
+  headline: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 20 },
+
+  divider: { height: 1, backgroundColor: '#2A2A2A', marginVertical: 20 },
+
+  strengthText: { fontSize: 14, color: '#BBB', marginBottom: 8, lineHeight: 20 },
+
+  focusCueBox: {
+    marginTop: 10,
+    padding: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FFB000',
+    backgroundColor: '#2A2200',
+  },
+  focusCueText: { fontSize: 14, color: '#FFB000', fontWeight: '600', lineHeight: 20 },
+
+  detailsToggle: { marginTop: 20, alignItems: 'center', paddingVertical: 12 },
+  detailsToggleText: { fontSize: 10, color: '#555', letterSpacing: 2, fontWeight: '700' },
+
+  detailsSection: { marginTop: 8 },
+  bullet: { fontSize: 13, color: '#AAA', marginBottom: 6 },
   bulletFault: { fontSize: 13, color: '#FF6B35', marginBottom: 6 },
 
   cameraControls: {
