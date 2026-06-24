@@ -93,6 +93,7 @@ app.post('/api/analyze', upload.single('video'), async (req, res) => {
 
   try {
     const { statusCode, data } = await callPoseService(req.file.path, req.file.originalname, exercise);
+    console.log('Pose service response:', JSON.stringify(data, null, 2));
 
     fs.unlink(req.file.path, () => {});
 
