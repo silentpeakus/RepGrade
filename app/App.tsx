@@ -243,8 +243,8 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#121212' },
-  container: { padding: 24, paddingTop: 60, paddingBottom: 48 },
+  scroll: { flex: 1, backgroundColor: '#121212', minHeight: '100vh' as unknown as number },
+  container: { padding: 24, paddingTop: 60, paddingBottom: 48, minHeight: '100vh' as unknown as number },
 
   title: { fontSize: 32, fontWeight: '900', color: '#FFB000', letterSpacing: 4 },
   subtitle: { fontSize: 12, color: '#888', letterSpacing: 3, marginBottom: 36, marginTop: 4 },
