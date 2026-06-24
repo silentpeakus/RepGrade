@@ -1,10 +1,13 @@
 {
   "expo": {
-    "name": "Personal Training App",
-    "slug": "personal-training-app",
+    "name": "RepGrade",
+    "slug": "repgrade",
     "version": "1.0.0",
     "sdkVersion": "52.0.0",
     "platforms": ["ios", "android", "web"],
+    "web": {
+      "bundler": "metro"
+    },
     "extra": {
       "apiBaseUrl": "http://localhost:4000"
     }
