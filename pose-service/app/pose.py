@@ -1,22 +1,24 @@
 """Pose extraction layer.
 
-Wraps MediaPipe Pose. Turns a video file into a list of per-frame keypoints.
-This is the only module that touches MediaPipe directly — everything downstream
-(rep detection, rubric scoring) operates on the plain dicts produced here, so the
-pose backend can be swapped later without rewriting the grading logic.
+Wraps MediaPipe Pose Landmarker (new Tasks API, mediapipe>=0.10.14).
+Turns a video file into a list of per-frame keypoints.
+This is the only module that touches MediaPipe directly.
 """
 
 from __future__ import annotations
 
+import os
 import statistics
+import urllib.request
 
 import cv2
 import mediapipe as mp
+from mediapipe.tasks import python as mp_python
+from mediapipe.tasks.python import vision as mp_vision
 
 from .frame import Frame
 
-# MediaPipe Pose landmark indices we care about for sagittal-plane lifts.
-# (Full list: https://developers.google.com/mediapipe/solutions/vision/pose_landmarker)
+# MediaPipe Pose landmark indices (same as before).
 _LANDMARKS = {
     "shoulder": (11, 12),
     "hip": (23, 24),
@@ -26,29 +28,31 @@ _LANDMARKS = {
     "foot_index": (31, 32),
 }
 
+MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
+    "pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task"
+)
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "pose_landmarker.task")
+
+
+def _ensure_model() -> str:
+    if not os.path.exists(MODEL_PATH):
+        print(f"Downloading pose model to {MODEL_PATH} ...", flush=True)
+        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+    return MODEL_PATH
+
 
 def _pick_side(side_visibility: dict) -> int:
-    """Side-view footage shows one side of the body. Pick whichever side
-    (0 = left landmarks, 1 = right landmarks) MediaPipe saw more confidently
-    across the whole clip, and use it consistently."""
     left = side_visibility.get(0, 0.0)
     right = side_visibility.get(1, 0.0)
     return 0 if left >= right else 1
 
 
-def _orientation_ratio(lms) -> float | None:
-    """Width-to-height ratio of the torso for one frame.
-
-    In a side (sagittal) view the left/right shoulders and hips line up in depth,
-    so their horizontal spread is small. In a front view they spread wide. Dividing
-    by torso height normalizes for how far the person is from the camera, so the
-    ratio is a scale-free proxy for camera angle. Low = side-on; high = front-on.
-    """
-    L = lms.landmark
-    shoulder_w = abs(L[11].x - L[12].x)
-    hip_w = abs(L[23].x - L[24].x)
-    mid_shoulder_y = (L[11].y + L[12].y) / 2
-    mid_hip_y = (L[23].y + L[24].y) / 2
+def _orientation_ratio(landmarks) -> float | None:
+    shoulder_w = abs(landmarks[11].x - landmarks[12].x)
+    hip_w = abs(landmarks[23].x - landmarks[24].x)
+    mid_shoulder_y = (landmarks[11].y + landmarks[12].y) / 2
+    mid_hip_y = (landmarks[23].y + landmarks[24].y) / 2
     torso_h = abs(mid_shoulder_y - mid_hip_y)
     if torso_h < 1e-4:
         return None
@@ -56,15 +60,19 @@ def _orientation_ratio(lms) -> float | None:
 
 
 def extract_frames(video_path: str) -> tuple[list[Frame], float, dict]:
-    """Run MediaPipe Pose over a video. Returns (frames, fps, meta).
+    model_path = _ensure_model()
 
-    Two passes: the first tallies which body side is more visible, the second
-    builds the keypoint series using that side, so a single squat is graded off
-    one consistent side rather than flickering between left/right keypoints.
+    base_options = mp_python.BaseOptions(model_asset_path=model_path)
+    options = mp_vision.PoseLandmarkerOptions(
+        base_options=base_options,
+        output_segmentation_masks=False,
+        num_poses=1,
+        min_pose_detection_confidence=0.5,
+        min_pose_presence_confidence=0.5,
+        min_tracking_confidence=0.5,
+        running_mode=mp_vision.RunningMode.VIDEO,
+    )
 
-    `meta` carries pre-flight signals (camera orientation, pose coverage,
-    resolution) consumed by app.preflight before any grading happens.
-    """
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise ValueError(f"Could not open video: {video_path}")
@@ -72,33 +80,41 @@ def extract_frames(video_path: str) -> tuple[list[Frame], float, dict]:
     frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    mp_pose = mp.solutions.pose
-    raw: list[tuple[float, object]] = []
+    raw: list[tuple[float, list | None]] = []
     side_visibility: dict[int, float] = {0: 0.0, 1: 0.0}
     orientation_ratios: list[float] = []
 
-    with mp_pose.Pose(model_complexity=1, min_detection_confidence=0.5) as pose:
+    with mp_vision.PoseLandmarker.create_from_options(options) as landmarker:
         idx = 0
         while True:
             ok, image = cap.read()
             if not ok:
                 break
             t = idx / fps
+            timestamp_ms = int(t * 1000)
             idx += 1
-            result = pose.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-            lms = result.pose_landmarks
-            raw.append((t, lms))
-            if lms is None:
+
+            rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+            result = landmarker.detect_for_video(mp_image, timestamp_ms)
+
+            if not result.pose_landmarks:
+                raw.append((t, None))
                 continue
-            # Tally side visibility using hip+knee+ankle as the reference joints.
+
+            landmarks = result.pose_landmarks[0]
+            raw.append((t, landmarks))
+
             for side in (0, 1):
                 vis = 0.0
                 for name in ("hip", "knee", "ankle"):
-                    vis += lms.landmark[_LANDMARKS[name][side]].visibility
+                    vis += landmarks[_LANDMARKS[name][side]].visibility
                 side_visibility[side] += vis
-            r = _orientation_ratio(lms)
+
+            r = _orientation_ratio(landmarks)
             if r is not None:
                 orientation_ratios.append(r)
+
     cap.release()
 
     total = len(raw)
@@ -113,13 +129,13 @@ def extract_frames(video_path: str) -> tuple[list[Frame], float, dict]:
 
     side = _pick_side(side_visibility)
     frames: list[Frame] = []
-    for t, lms in raw:
-        if lms is None:
+    for t, landmarks in raw:
+        if landmarks is None:
             frames.append(Frame(t=t, points={}))
             continue
         points = {}
         for name, (li, ri) in _LANDMARKS.items():
-            lm = lms.landmark[li if side == 0 else ri]
+            lm = landmarks[li if side == 0 else ri]
             points[name] = (lm.x, lm.y, lm.visibility)
         frames.append(Frame(t=t, points=points))
 
