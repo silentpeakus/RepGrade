@@ -132,6 +132,7 @@ export default function App() {
       allowsEditing: false,
       quality: 1,
     });
+    Alert.alert('Picker result', JSON.stringify({ canceled: picked.canceled, assets: picked.assets?.length ?? 0 }));
     if (!picked.canceled && picked.assets[0]) {
       const asset = picked.assets[0];
       const filename = asset.uri.split('/').pop() || 'upload.mp4';
