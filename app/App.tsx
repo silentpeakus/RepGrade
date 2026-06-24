@@ -136,9 +136,9 @@ export default function App() {
       });
       setSessions(updated);
     } catch (err: unknown) {
-      const msg =
-        axios.isAxiosError(err) && err.response?.data?.issues
-          ? err.response.data.issues.join(' ')
+      const issues = axios.isAxiosError(err) && err.response?.data?.issues;
+      const msg = issues
+          ? issues.map((i: { message?: string } | string) => typeof i === 'string' ? i : i.message).join(' ')
           : axios.isAxiosError(err) && err.response?.data?.error
           ? err.response.data.error
           : 'Analysis failed. Check that both services are running.';
