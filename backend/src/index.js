@@ -48,19 +48,37 @@ function callPoseService(filePath, filename, exercise) {
 
 // Map the pose service result into the RepGrade response shape.
 function buildGradeResponse(exercise, poseResult) {
-  const { score_0_to_4, reps = [], issues = [], cues = [] } = poseResult;
-  const gpa = typeof score_0_to_4 === 'number' ? score_0_to_4 : null;
-  const letterGrade = gpa === null ? 'N/A'
-    : gpa >= 3.7 ? 'A'
-    : gpa >= 3.0 ? 'B'
-    : gpa >= 2.0 ? 'C'
-    : gpa >= 1.0 ? 'D' : 'F';
+  // Pose service returns form.letter, form.numeric, rep_count, and per-rep faults.
+  const formLetter = poseResult.form?.letter ?? 'N/A';
+  const formNumeric = poseResult.form?.numeric ?? null;
+  const repCount = poseResult.rep_count ?? 0;
+
+  // Convert numeric (0-100) to 4.0 GPA scale.
+  const gpa = formNumeric !== null ? Math.round((formNumeric / 100) * 4.0 * 100) / 100 : null;
+
+  // Collect unique fault cues across all reps.
+  const allFaults = (poseResult.reps ?? []).flatMap((r) => r.faults ?? []);
+  const seen = new Set();
+  const cues = [];
+  const issues = [];
+  for (const fault of allFaults) {
+    if (!seen.has(fault.detail)) {
+      seen.add(fault.detail);
+      if (fault.severity === 'fault') issues.push(fault.detail);
+      else cues.push(fault.detail);
+    }
+  }
+
+  // Map letter to coaching cue if no fault cues exist.
+  if (cues.length === 0 && issues.length === 0 && repCount > 0) {
+    cues.push('Great set — maintain this consistency each session.');
+  }
 
   return {
     exercise,
-    gpa: gpa !== null ? Math.round(gpa * 100) / 100 : null,
-    grade: letterGrade,
-    reps: reps.length,
+    gpa,
+    grade: formLetter,
+    reps: repCount,
     cues,
     issues,
     raw: poseResult,
