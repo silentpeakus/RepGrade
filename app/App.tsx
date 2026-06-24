@@ -15,7 +15,7 @@ import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo
 import axios from 'axios';
 
 const BACKEND =
-  Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://10.0.0.217:4000';
+  Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://10.0.0.31:4000';
 
 type AnalysisResult = {
   exercise: string;
