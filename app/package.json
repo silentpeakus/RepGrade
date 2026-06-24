@@ -2,6 +2,7 @@
   "name": "training-client-app",
   "version": "0.1.0",
   "private": true,
+  "main": "App.tsx",
   "scripts": {
     "dev": "expo start --tunnel",
     "web": "expo start --web",
