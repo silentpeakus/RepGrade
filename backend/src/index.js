@@ -68,7 +68,9 @@ function buildGradeResponse(exercise, poseResult) {
 }
 
 app.post('/api/analyze', upload.single('video'), async (req, res) => {
+  console.log('POST /api/analyze hit', { file: req.file?.originalname, exercise: req.body?.exercise });
   if (!req.file) {
+    console.log('No file received');
     return res.status(400).json({ error: 'No video file uploaded.' });
   }
   const exercise = (req.body.exercise || 'back_squat').trim().toLowerCase().replace(/ /g, '_');
