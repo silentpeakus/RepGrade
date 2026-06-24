@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -137,6 +138,7 @@ export default function App() {
       setSessions(updated);
     } catch (err: unknown) {
       const issues = axios.isAxiosError(err) && err.response?.data?.issues;
+      Alert.alert('DEBUG', JSON.stringify(err.response?.data ?? err.message ?? err));
       const msg = issues
           ? issues.map((i: { message?: string } | string) => typeof i === 'string' ? i : i.message).join(' ')
           : axios.isAxiosError(err) && err.response?.data?.error
