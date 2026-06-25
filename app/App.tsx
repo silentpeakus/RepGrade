@@ -122,6 +122,7 @@ export default function App() {
         timeout: 180000,
       });
       const data: AnalysisResult = r.data;
+      Alert.alert('SUCCESS DEBUG', `cues: ${JSON.stringify(data.cues)}\nissues: ${JSON.stringify(data.issues)}`);
       setResult(data);
       setStatus('');
 
