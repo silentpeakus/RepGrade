@@ -219,7 +219,7 @@ export default function App() {
           <StatusBar style="dark" />
           <View style={styles.header}>
             <View style={styles.logoMark}><Text style={styles.logoIcon}>⚡</Text></View>
-            <Text style={styles.logoText}>REPGRADE</Text>
+            <Text style={styles.logoText}>REPGRADE v2</Text>
           </View>
 
           <Text style={styles.pageTitle}>Session History</Text>
